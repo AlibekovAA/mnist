@@ -1,5 +1,6 @@
 from tkinter import colorchooser, messagebox
 import tkinter as tk
+from tkinter import ttk
 from PIL import Image, ImageDraw, ImageTk
 from random import randint
 from tensorflow.keras.models import load_model
@@ -18,11 +19,12 @@ class DrawingApp:
         self.root.geometry('750x500')
         self.root.resizable(0, 0)
         root.option_add("*tearOff", False)
+        ttk.Style().theme_use("alt")
 
         self.brush_size = tk.IntVar(value=10)
         self.color = tk.StringVar(value='black')
         self.color_canvas = tk.StringVar(value='white')
-
+        self.progress_bars = []
         self.canvas = tk.Canvas(root, bg='white', width=400, height=400)
         self.canvas.grid(row=2, column=0, columnspan=7, padx=5, pady=5)
         self.canvas.bind('<B1-Motion>', self.draw)
@@ -60,6 +62,22 @@ class DrawingApp:
 
     def init_ui(self):
         tk.Label(self.root, text='Параметры: ').grid(row=0, column=0, padx=6)
+        self.progress_frame = ttk.Frame(self.root)
+        self.progress_frame.grid(row=2, column=7, padx=5, pady=5)
+        for i in range(10):
+            progress_bar = ttk.Progressbar(
+                self.progress_frame, length=100, mode='determinate')
+            progress_bar.grid(row=i, column=4, padx=5, pady=5)
+            progress_bar['value'] = 0
+            progress_bar['maximum'] = 100
+            progress_bar['orient'] = 'horizontal'
+            progress_bar['style'] = 'TProgressbar.Horizontal.TProgressbar'
+            self.progress_bars.append(progress_bar)
+
+        for i in range(10):
+            label = tk.Label(self.progress_frame, text=str(i), bg='white')
+            label.grid(row=i, column=3, padx=5, pady=5)
+            self.progress_bars.append(label)
 
         tk.Button(self.root, text='Выбрать цвет кисти', width=15,
                   command=self.choose_color).grid(row=0, column=1, padx=6)
@@ -74,20 +92,16 @@ class DrawingApp:
         self.color_canvas_lab.grid(row=1, column=2, padx=6)
 
         tk.Scale(self.root, variable=self.brush_size, from_=2, to=5,
-                 command=self.select, orient=tk.HORIZONTAL, length=150).grid(row=0, column=3, padx=6)
+                 command=self.select, orient=tk.HORIZONTAL, length=100).grid(row=0, column=3)
 
         tk.Button(self.root, text='Очистить', width=10,
                   command=self.clear_canvas).grid(row=1, column=0)
 
         tk.Button(self.root, text='Сохранить рисунок', width=16,
-                  command=self.save_image).grid(row=1, column=3)
+                  command=self.save_image).grid(row=0, column=4)
 
-        tk.Button(self.root, text='Определить цифру', width=15,
+        tk.Button(self.root, text='Определить цифру', width=16,
                   command=self.predict_digit).grid(row=1, column=4)
-
-        self.prediction_label = tk.Label(
-            self.root, text="Предсказанная цифра: ")
-        self.prediction_label.grid(row=0, column=4, padx=6)
 
     def draw(self, event):
         brush_size = self.brush_size.get()
@@ -213,23 +227,25 @@ class DrawingApp:
         self.image1.save(filename)
         predicted_digit, max_probability = self.rec_digit(filename)
         if predicted_digit is not None:
-            max_index = np.argmax(max_probability)
-            max_probability = max_probability[max_index]
-            self.prediction_label.config(
-                text=f"Предсказанная цифра: {predicted_digit}, Вероятность: {max_probability:.2f}", fg="red")
+            for i, probability in enumerate(max_probability):
+                normalized_probability = int(probability * 100)
+                self.progress_bars[i]['value'] = normalized_probability
         os.remove(filename)
 
     def clear_canvas(self):
         self.canvas.delete('all')
         self.canvas['bg'] = 'white'
         self.draw_img.rectangle((0, 0, 400, 400), fill='white')
-        self.prediction_label.config(text="Предсказанная цифра: ", fg="black")
         self.color_lab['bg'] = 'black'
         self.color_canvas_lab['bg'] = 'white'
+        self.color = tk.StringVar(value='black')
+        for i in range(10):
+            self.progress_bars[i]['value'] = 0
 
     def save_image(self):
         filename = f'image_{randint(0, 1000)}.png'
-        self.image1.save(filename)
+        with open(filename, 'wb') as f:
+            self.image1.save(f)
         messagebox.showinfo(
             'Сохранение', f'Сохранено под названием {filename}')
 
