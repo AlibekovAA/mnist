@@ -1,6 +1,6 @@
 from tkinter import colorchooser, messagebox
 import tkinter as tk
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageTk
 from random import randint
 from tensorflow.keras.models import load_model
 import numpy as np
@@ -8,14 +8,16 @@ import cv2
 import os
 import math
 from scipy.ndimage.measurements import center_of_mass
+import webbrowser
 
 
 class DrawingApp:
     def __init__(self, root):
         self.root = root
         self.root.title('Mnist_paint')
-        self.root.geometry('700x500')
+        self.root.geometry('750x500')
         self.root.resizable(0, 0)
+        root.option_add("*tearOff", False)
 
         self.brush_size = tk.IntVar(value=10)
         self.color = tk.StringVar(value='black')
@@ -26,7 +28,23 @@ class DrawingApp:
         self.canvas.bind('<B1-Motion>', self.draw)
         self.canvas.bind('<Button-3>', self.popup)
 
-        self.menu = tk.Menu(tearoff=0)
+        self.menu = tk.Menu()
+        self.help_menu = tk.Menu(self.menu)
+        self.menu.add_cascade(label='Help', menu=self.help_menu)
+
+        self.about_menu = tk.Menu(self.help_menu)
+        self.help_menu.add_command(label='About', command=self.about)
+
+        self.social_menu = tk.Menu(self.help_menu)
+        self.help_menu.add_cascade(
+            label='My social media', menu=self.social_menu)
+
+        self.social_menu.add_command(
+            label='Telegram', command=lambda: self.social_media('Telegram'))
+        self.social_menu.add_command(
+            label='VK', command=lambda: self.social_media('VK'))
+
+        self.help_menu.add_command(label='Exit', command=self.root.quit)
 
         self.image1 = Image.new('RGB', (400, 400), 'white')
         self.draw_img = ImageDraw.Draw(self.image1)
@@ -77,6 +95,40 @@ class DrawingApp:
         x2, y2 = (event.x + brush_size), (event.y + brush_size)
         self.canvas.create_oval(x1, y1, x2, y2, fill=self.color.get(), width=0)
         self.draw_img.ellipse((x1, y1, x2, y2), fill=self.color.get(), width=0)
+
+    def about(self):
+        about_window = tk.Toplevel(self.root)
+        about_window.title("About")
+        about_window.geometry("400x300")
+
+        label_info = tk.Label(
+            about_window, text="Author: Alibekov A.A.\nVersion: 1.0")
+        label_info.pack(pady=10)
+
+        image_path = "mnist-examples.png"
+        if os.path.exists(image_path):
+            image = Image.open(image_path)
+            image = image.resize((300, 200), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(image)
+            label_image = tk.Label(about_window, image=photo)
+            label_image.image = photo
+            label_image.pack(pady=10)
+        else:
+            label_image = tk.Label(about_window, text="Image not found")
+            label_image.pack(pady=10)
+
+        button_close = tk.Button(
+            about_window, text="Закрыть", command=about_window.destroy)
+        button_close.pack(pady=10)
+
+    def social_media(self, platform):
+        if platform == 'Telegram':
+            webbrowser.open('https://t.me/alibekov_05')
+        elif platform == 'VK':
+            webbrowser.open('https://vk.com/alibekov_05')
+        else:
+            messagebox.showerror(
+                "Ошибка", f"Ошибка при определение платформы {platform}")
 
     def choose_color(self):
         (rbx, hx) = colorchooser.askcolor()
@@ -147,21 +199,24 @@ class DrawingApp:
             cv2.imwrite('temp_gray.png', gray)
             img = gray / 255.0
             img = np.array(img).reshape(-1, 28, 28, 1)
-            out = str(np.argmax(self.model.predict(img)))
+            probabilities = self.model.predict(img)
+            max_index = np.argmax(probabilities)
             os.remove('temp_gray.png')
-            return out
+            return str(max_index), max(probabilities)
         except Exception as e:
             messagebox.showerror(
                 "Ошибка", f"Ошибка при определении цифры: {e}")
-            return None
+            return None, None
 
     def predict_digit(self):
         filename = 'temp_image.png'
         self.image1.save(filename)
-        predicted_digit = self.rec_digit(filename)
+        predicted_digit, max_probability = self.rec_digit(filename)
         if predicted_digit is not None:
+            max_index = np.argmax(max_probability)
+            max_probability = max_probability[max_index]
             self.prediction_label.config(
-                text=f"Предсказанная цифра: {predicted_digit}", fg="red")
+                text=f"Предсказанная цифра: {predicted_digit}, Вероятность: {max_probability:.2f}", fg="red")
         os.remove(filename)
 
     def clear_canvas(self):
@@ -184,4 +239,5 @@ class DrawingApp:
 
 root = tk.Tk()
 app = DrawingApp(root)
+root.config(menu=app.menu)
 root.mainloop()
