@@ -19,6 +19,7 @@ class DrawingApp:
 
         self.brush_size = tk.IntVar(value=10)
         self.color = tk.StringVar(value='black')
+        self.color_canvas = tk.StringVar(value='white')
 
         self.canvas = tk.Canvas(root, bg='white', width=400, height=400)
         self.canvas.grid(row=2, column=0, columnspan=7, padx=5, pady=5)
@@ -42,17 +43,23 @@ class DrawingApp:
     def init_ui(self):
         tk.Label(self.root, text='Параметры: ').grid(row=0, column=0, padx=6)
 
-        tk.Button(self.root, text='Выбрать цвет', width=12,
+        tk.Button(self.root, text='Выбрать цвет кисти', width=15,
                   command=self.choose_color).grid(row=0, column=1, padx=6)
+        tk.Button(self.root, text='Выбрать цвет фона', width=15,
+                  command=self.choose_color_canvas).grid(row=1, column=1, padx=6)
 
         self.color_lab = tk.Label(self.root, bg=self.color.get(), width=10)
         self.color_lab.grid(row=0, column=2, padx=6)
 
-        tk.Scale(self.root, variable=self.brush_size, from_=1, to=5,
+        self.color_canvas_lab = tk.Label(
+            self.root, bg=self.color_canvas.get(), width=10)
+        self.color_canvas_lab.grid(row=1, column=2, padx=6)
+
+        tk.Scale(self.root, variable=self.brush_size, from_=2, to=5,
                  command=self.select, orient=tk.HORIZONTAL, length=150).grid(row=0, column=3, padx=6)
 
         tk.Button(self.root, text='Очистить', width=10,
-                  command=self.clear_canvas).grid(row=1, column=1)
+                  command=self.clear_canvas).grid(row=1, column=0)
 
         tk.Button(self.root, text='Сохранить рисунок', width=16,
                   command=self.save_image).grid(row=1, column=3)
@@ -61,7 +68,7 @@ class DrawingApp:
                   command=self.predict_digit).grid(row=1, column=4)
 
         self.prediction_label = tk.Label(
-            self.root, text="Предсказанная цифра: ", font=("Helvetica", 12))
+            self.root, text="Предсказанная цифра: ")
         self.prediction_label.grid(row=0, column=4, padx=6)
 
     def draw(self, event):
@@ -76,6 +83,12 @@ class DrawingApp:
         if hx:
             self.color.set(hx)
             self.color_lab['bg'] = hx
+
+    def choose_color_canvas(self):
+        (rbx, hx) = colorchooser.askcolor()
+        if hx:
+            self.canvas.configure(bg=hx)
+            self.color_canvas_lab['bg'] = hx
 
     def select(self, value):
         self.brush_size.set(int(value))
@@ -156,6 +169,8 @@ class DrawingApp:
         self.canvas['bg'] = 'white'
         self.draw_img.rectangle((0, 0, 400, 400), fill='white')
         self.prediction_label.config(text="Предсказанная цифра: ", fg="black")
+        self.color_lab['bg'] = 'black'
+        self.color_canvas_lab['bg'] = 'white'
 
     def save_image(self):
         filename = f'image_{randint(0, 1000)}.png'
